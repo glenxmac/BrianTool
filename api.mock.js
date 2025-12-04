@@ -24,7 +24,8 @@ let teams = [
   }
 ]
 
-const bookings = [
+// NOTE: let (not const) so we can reassign in deleteTeam, etc.
+let bookings = [
   // example booking
   {
     id: 'b-1',
@@ -34,9 +35,26 @@ const bookings = [
     durationHours: 2,
     customerName: 'Smith Residence',
     jobType: 'measure',
-    notes: 'Measure and quote – lounge windows'
+    notes: 'Measure and quote – lounge windows',
+    address: '',
+    clientPhone: '',
+    orderNumbers: '',
+    crew: [],
+    products: []
   }
 ]
+
+let people = [
+  // starter data is optional
+  { id: 'p1', name: 'Alice', role: 'fitter', phone: '082 111 2222' }
+]
+let nextPersonId = 1
+
+let products = [
+  // optional seed data
+  { id: 'pr1', name: 'Blind', category: 'Blinds', subType: 'Wood', productId: 'BLD-WOOD' }
+]
+let nextProductId = 1
 
 /* ------------- helpers ------------- */
 
@@ -66,7 +84,9 @@ export async function getTeams () {
     id: t.id,
     name: t.name,
     teamLeadId: t.teamLeadId,
-    members: t.memberIds.map(id => employees.find(e => e.id === id)).filter(Boolean)
+    members: t.memberIds
+      .map(id => employees.find(e => e.id === id))
+      .filter(Boolean)
   }))
   return clone(enriched)
 }
@@ -128,8 +148,14 @@ export async function getBookingsForWeek (weekStart) {
   return clone(result)
 }
 
+export async function getBookingsForDay (dateObj) {
+  const dayISO = dateObj.toISOString().slice(0, 10)
+  return clone(bookings.filter(b => b.date === dayISO))
+}
+
 export async function createBooking (payload) {
   const id = generateId('b')
+
   const booking = {
     id,
     date: payload.date,
@@ -138,7 +164,17 @@ export async function createBooking (payload) {
     durationHours: Number(payload.durationHours ?? 0),
     customerName: payload.customerName || '',
     jobType: payload.jobType || 'other',
-    notes: payload.notes || ''
+    notes: payload.notes || '',
+    address: payload.address || '',
+    clientPhone: payload.clientPhone || '',
+    orderNumbers: payload.orderNumbers || '',
+    crew: Array.isArray(payload.crew) ? payload.crew.slice() : [],
+    products: Array.isArray(payload.products)
+      ? payload.products.map(p => ({
+        productId: p.productId,
+        quantity: Number(p.quantity ?? 1)
+      }))
+      : []
   }
 
   // Very naive overlap check: same team, same date, same start time
@@ -161,20 +197,18 @@ export async function updateBooking (payload) {
   const booking = bookings.find(b => b.id === payload.id)
   if (!booking) throw new Error('Booking not found')
 
-  // simple overlap check if date/start/team changes
   const newDate = payload.date ?? booking.date
   const newStart = payload.startTime ?? booking.startTime
   const newTeam = payload.teamId ?? booking.teamId
-  const newJob = payload.jobType ?? booking.jobType
 
+  // simple overlap check if date/start/team changes
   if (
     bookings.some(
       b =>
         b.id !== booking.id &&
         b.teamId === newTeam &&
         b.date === newDate &&
-        b.startTime === newStart &&
-        b.jobType === newJob
+        b.startTime === newStart
     )
   ) {
     throw new Error('This team already has a booking at that time.')
@@ -183,10 +217,26 @@ export async function updateBooking (payload) {
   booking.date = newDate
   booking.teamId = newTeam
   booking.startTime = newStart
-  booking.jobType = newJob
+  booking.jobType = payload.jobType ?? booking.jobType
   booking.durationHours = Number(payload.durationHours ?? booking.durationHours)
   booking.customerName = payload.customerName ?? booking.customerName
   booking.notes = payload.notes ?? booking.notes
+  booking.address = payload.address ?? booking.address
+  booking.clientPhone = payload.clientPhone ?? booking.clientPhone
+  booking.orderNumbers = payload.orderNumbers ?? booking.orderNumbers
+
+  if (payload.crew) {
+    booking.crew = Array.isArray(payload.crew) ? payload.crew.slice() : []
+  }
+
+  if (payload.products) {
+    booking.products = Array.isArray(payload.products)
+      ? payload.products.map(p => ({
+        productId: p.productId,
+        quantity: Number(p.quantity ?? 1)
+      }))
+      : []
+  }
 
   return clone(booking)
 }
@@ -198,15 +248,82 @@ export async function deleteBooking (id) {
   return { success: true }
 }
 
-export async function getBookingsForDay (dateObj) {
-  const dayISO = dateObj.toISOString().slice(0, 10)
-  return clone(bookings.filter(b => b.date === dayISO))
-}
-
 export async function deleteTeam (teamId) {
   // Remove the team
   teams = teams.filter(t => t.id !== teamId)
   // Remove any bookings for that team
   bookings = bookings.filter(b => b.teamId !== teamId)
   return { success: true }
+}
+
+/* -------------- people -------------- */
+
+export async function getPeople () {
+  // pretend API latency
+  return [...people]
+}
+
+export async function createPerson (payload) {
+  const newPerson = {
+    id: String(nextPersonId++),
+    name: payload.name,
+    role: payload.role || 'fitter',
+    phone: payload.phone || ''
+  }
+  people.push(newPerson)
+  return newPerson
+}
+
+export async function updatePerson (payload) {
+  const idx = people.findIndex(p => String(p.id) === String(payload.id))
+  if (idx === -1) {
+    throw new Error('Person not found')
+  }
+  people[idx] = {
+    ...people[idx],
+    name: payload.name,
+    role: payload.role || people[idx].role,
+    phone: payload.phone || ''
+  }
+  return people[idx]
+}
+
+export async function deletePerson (id) {
+  people = people.filter(p => String(p.id) !== String(id))
+}
+
+/* ------------- products ------------- */
+
+export async function getProducts () {
+  return [...products]
+}
+
+export async function createProduct (payload) {
+  const newProduct = {
+    id: String(nextProductId++),
+    name: payload.name,
+    category: payload.category || '',
+    subType: payload.subType || '',
+    productId: payload.productId || ''
+  }
+  products.push(newProduct)
+  return newProduct
+}
+
+export async function updateProduct (payload) {
+  const idx = products.findIndex(p => String(p.id) === String(payload.id))
+  if (idx === -1) throw new Error('Product not found')
+
+  products[idx] = {
+    ...products[idx],
+    name: payload.name,
+    category: payload.category || '',
+    subType: payload.subType || '',
+    productId: payload.productId || ''
+  }
+  return products[idx]
+}
+
+export async function deleteProduct (id) {
+  products = products.filter(p => String(p.id) !== String(id))
 }

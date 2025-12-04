@@ -233,9 +233,28 @@ text-overflow: ellipsis;
     font-size: 0.75rem;
     padding: 2px 4px;
     border-radius: 4px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow: hidden;      /* keep, so content doesn’t spill out */
+    /* allow wrapping for multiple lines */
+    white-space: normal;
+}
+
+/* new “lines” inside the block */
+.booking-line-time {
+    font-weight: 700;
+    font-size: 0.8rem;
+    line-height: 1.1;
+}
+
+.booking-line-customer {
+    font-weight: 600;
+    font-size: 0.8rem;
+    line-height: 1.2;
+}
+
+.booking-line-meta {
+    font-size: 0.72rem;
+    line-height: 1.2;
+    opacity: 0.95;
 }
 
 .booking-service-pro {
@@ -403,3 +422,26 @@ z-index: 10;
 
 /* Optional: make the label & legend row look a bit tighter if you like */
 /* .schedule-week-label { font-weight: 600; } */
+
+.people-role-badge {
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+.people-role-badge {
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+.booking-products .booking-product-row:last-child {
+  margin-bottom: 0;
+}
+
+.booking-crew-list .form-check {
+  margin-bottom: 0.25rem;
+}
+
+.booking-service-transit {
+  background-color: #6c757d;
+  color: #fff;
+}

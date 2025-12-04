@@ -1,8 +1,10 @@
 // app.js
 import { initScheduleGrid } from './components/scheduleGrid.js'
-import { initTeams } from './components/teams.js'
+import { initPeople } from './components/people.js'
+import { initProducts } from './components/products.js'
 
 document.addEventListener('DOMContentLoaded', () => {
   initScheduleGrid()
-  initTeams()
+  initPeople()
+  initProducts()
 })

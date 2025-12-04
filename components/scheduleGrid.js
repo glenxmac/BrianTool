@@ -14,8 +14,10 @@ const TIME_SLOTS = buildTimeSlots() // ["08:00","08:30",...]
 
 let teams = []
 let bookings = []
+let people = []
+let products = []
 
-let viewMode = 'day' // 'day' | 'week'
+let viewMode = 'day'
 let currentDate = new Date()
 
 let scheduleGridContainer
@@ -59,6 +61,12 @@ export function initScheduleGrid () {
 
 async function refreshData () {
   teams = await api.getTeams()
+  if (api.getPeople) {
+    people = await api.getPeople()
+  }
+  if (api.getProducts) {
+    products = await api.getProducts()
+  }
   const weekStart = getMonday(currentDate)
   bookings = await api.getBookingsForWeek(weekStart)
 
@@ -208,10 +216,26 @@ function renderGrid () {
         } else if (cell.type === 'booking') {
           const b = cell.booking
           const cssClass = jobTypeClass(b.jobType)
-          const timeLabel = slotTime
-          const title = b.customerName || 'Booking'
-          const jobLabel = b.jobType ? b.jobType : ''
-          const notesSnippet = b.notes ? b.notes : ''
+
+          // top label: customer OR generic
+          const customerLabel = b.customerName || 'Booking'
+
+          // human-readable job type
+          const jobLabel = jobTypeLabel(b.jobType)
+
+          // first line of notes / order / address as a short description
+          const notesSummary = (b.notes || '').split('\n')[0].trim()
+          const addressSummary = (b.address || '').split('\n')[0].trim()
+          const orderSummary = (b.orderNumbers || '').split('\n')[0].trim()
+
+          // build one compact meta line
+          const metaBits = []
+          if (jobLabel) metaBits.push(jobLabel)
+          if (notesSummary) metaBits.push(notesSummary)
+          else if (addressSummary) metaBits.push(addressSummary)
+          else if (orderSummary) metaBits.push(orderSummary)
+
+          const metaLine = metaBits.join(' – ')
 
           html += `
             <td
@@ -225,19 +249,20 @@ function renderGrid () {
                 class="booking-block ${cssClass}"
                 data-booking-id="${b.id}"
                 >
-                <div class="booking-label">
-                    <div class="booking-time">${timeLabel}</div>
-                    <div class="booking-title">${title}</div>
-                    ${
-                    jobLabel || notesSnippet
-                        ? `<div class="booking-meta">
-                            ${[jobLabel, notesSnippet].filter(Boolean).join(' • ')}
-                        </div>`
-                        : ''
-                    }
+                <div class="booking-line-time">
+                    ${slotTime}
                 </div>
+                <div class="booking-line-customer">
+                    ${customerLabel}
+                </div>
+                ${
+                    metaLine
+                    ? `<div class="booking-line-meta">${metaLine}</div>`
+                    : ''
+                }
                 <div class="booking-resize-handle"></div>
                 </div>
+            </td>
             `
         }
       })
@@ -258,6 +283,23 @@ function renderGrid () {
   if (viewMode === 'week' && shouldScrollToToday) {
     shouldScrollToToday = false
     scrollToCurrentDayInWeek()
+  }
+}
+
+function jobTypeLabel (jobType) {
+  switch (jobType) {
+    case 'measure':
+      return 'Measure / Quote'
+    case 'install':
+      return 'Install'
+    case 'service':
+      return 'Service'
+    case 'transit':
+      return 'Transit / Travel'
+    case 'other':
+      return 'Other'
+    default:
+      return ''
   }
 }
 
@@ -673,11 +715,39 @@ function setupModalHandlers () {
     const durationInput = document.getElementById('booking-duration')
     const customerInput = document.getElementById('booking-customer')
     const notesInput = document.getElementById('booking-notes')
-    const errorEl = document.getElementById('booking-error')
     const jobTypeSelect = document.getElementById('booking-jobType')
+    const addressInput = document.getElementById('booking-address')
+    const phoneInput = document.getElementById('booking-phone')
+    const orderInput = document.getElementById('booking-orderNumbers')
+    const crewContainer = document.getElementById('booking-crew')
+    const productsContainer = document.getElementById('booking-products')
+    const errorEl = document.getElementById('booking-error')
 
     const rawDuration = durationInput.value.replace(',', '.')
     const durationHours = toNumber(rawDuration) || 1.5
+
+    // crew (people ticked for this job)
+    let crew = []
+    if (crewContainer) {
+      crew = Array.from(
+        crewContainer.querySelectorAll('input[type="checkbox"]:checked')
+      ).map(cb => cb.value)
+    }
+
+    // products (selected lines)
+    const productsPayload = []
+    if (productsContainer) {
+      const rows = productsContainer.querySelectorAll('.booking-product-row')
+      rows.forEach(row => {
+        const select = row.querySelector('.booking-product-select')
+        const qtyInput = row.querySelector('.booking-product-qty')
+        if (!select) return
+        const productId = select.value
+        if (!productId) return
+        const quantity = parseInt(qtyInput?.value || '1', 10) || 1
+        productsPayload.push({ productId, quantity })
+      })
+    }
 
     const payload = {
       id: idInput.value || null,
@@ -687,7 +757,12 @@ function setupModalHandlers () {
       durationHours,
       customerName: customerInput.value.trim(),
       notes: notesInput.value.trim(),
-      jobType: jobTypeSelect.value
+      jobType: jobTypeSelect ? jobTypeSelect.value : 'other',
+      address: addressInput ? addressInput.value.trim() : '',
+      clientPhone: phoneInput ? phoneInput.value.trim() : '',
+      orderNumbers: orderInput ? orderInput.value.trim() : '',
+      crew,
+      products: productsPayload
     }
 
     try {
@@ -740,6 +815,9 @@ function openModalForNew (dateISO, teamId, startTime) {
   const deleteBtn = document.getElementById('btn-delete-booking')
   const errorEl = document.getElementById('booking-error')
   const jobTypeSelect = document.getElementById('booking-jobType')
+  const addressInput = document.getElementById('booking-address')
+  const phoneInput = document.getElementById('booking-phone')
+  const orderInput = document.getElementById('booking-orderNumbers')
 
   if (idInput) idInput.value = ''
   if (deleteBtn) deleteBtn.classList.add('d-none')
@@ -751,7 +829,12 @@ function openModalForNew (dateISO, teamId, startTime) {
   durationInput.value = '1.5'
   customerInput.value = ''
   notesInput.value = ''
-  jobTypeSelect.value = 'measure'
+  if (jobTypeSelect) jobTypeSelect.value = 'install'
+  if (addressInput) addressInput.value = ''
+  if (phoneInput) phoneInput.value = ''
+  if (orderInput) orderInput.value = ''
+
+  renderCrewAndProducts(null)
 
   document.getElementById('bookingModalLabel').textContent = 'New booking'
   bookingModal.show()
@@ -768,6 +851,9 @@ function openModalForEdit (booking) {
   const deleteBtn = document.getElementById('btn-delete-booking')
   const errorEl = document.getElementById('booking-error')
   const jobTypeSelect = document.getElementById('booking-jobType')
+  const addressInput = document.getElementById('booking-address')
+  const phoneInput = document.getElementById('booking-phone')
+  const orderInput = document.getElementById('booking-orderNumbers')
 
   if (idInput) idInput.value = booking.id
   if (deleteBtn) deleteBtn.classList.remove('d-none')
@@ -779,13 +865,146 @@ function openModalForEdit (booking) {
   durationInput.value = String(toNumber(booking.durationHours) || 1.5)
   customerInput.value = booking.customerName || ''
   notesInput.value = booking.notes || ''
-  jobTypeSelect.value = booking.jobType || 'measure'
+  if (jobTypeSelect) jobTypeSelect.value = booking.jobType || 'other'
+  if (addressInput) addressInput.value = booking.address || ''
+  if (phoneInput) phoneInput.value = booking.clientPhone || ''
+  if (orderInput) orderInput.value = booking.orderNumbers || ''
+
+  renderCrewAndProducts(booking)
 
   document.getElementById('bookingModalLabel').textContent = 'Edit booking'
   bookingModal.show()
 }
 
 /* ---------------- helpers ---------------- */
+
+function renderCrewAndProducts (booking) {
+  renderCrewList(booking)
+  renderProductLines(booking)
+}
+
+function renderCrewList (booking) {
+  const container = document.getElementById('booking-crew')
+  if (!container) return
+
+  if (!people || !people.length) {
+    container.innerHTML =
+      '<div class="text-muted small">No people yet. Add them on the People tab.</div>'
+    return
+  }
+
+  const selectedIds = new Set(
+    (booking && booking.crew ? booking.crew : []).map(String)
+  )
+
+  container.innerHTML = people
+    .map(p => {
+      const checked = selectedIds.has(String(p.id)) ? 'checked' : ''
+      const roleText = p.role ? ` <span class="text-muted small">(${escapeHtml(p.role)})</span>` : ''
+      return `
+        <div class="form-check form-check-sm">
+          <input
+            class="form-check-input"
+            type="checkbox"
+            value="${p.id}"
+            id="crew-${p.id}"
+            ${checked}
+          />
+          <label class="form-check-label" for="crew-${p.id}">
+            ${escapeHtml(p.name)}${roleText}
+          </label>
+        </div>
+      `
+    })
+    .join('')
+}
+
+function renderProductLines (booking) {
+  const container = document.getElementById('booking-products')
+  const addBtn = document.getElementById('booking-add-product')
+  if (!container) return
+
+  let rows = booking && booking.products && booking.products.length
+    ? booking.products
+    : []
+
+  if (!rows.length) {
+    rows = [{ productId: '', quantity: 1 }]
+  }
+
+  container.innerHTML = rows
+    .map((row, idx) => buildProductRow(row, idx))
+    .join('')
+
+  // add line button
+  if (addBtn && !addBtn._wired) {
+    addBtn.addEventListener('click', () => {
+      const idx = container.querySelectorAll('.booking-product-row').length
+      const empty = { productId: '', quantity: 1 }
+      container.insertAdjacentHTML('beforeend', buildProductRow(empty, idx))
+    })
+    addBtn._wired = true
+  }
+
+  // delete line (delegated)
+  container.onclick = e => {
+    const removeBtn = e.target.closest('.booking-product-remove')
+    if (!removeBtn) return
+    const rowEl = removeBtn.closest('.booking-product-row')
+    if (!rowEl) return
+    rowEl.remove()
+  }
+}
+
+function buildProductRow (row, index) {
+  const selectedId = row.productId || ''
+  const qty = row.quantity != null ? row.quantity : 1
+
+  const options =
+    '<option value="">Select product…</option>' +
+    (products || [])
+      .map(p => {
+        const label = p.subType
+          ? `${p.name} – ${p.subType}`
+          : p.name
+        const selected = String(p.id) === String(selectedId) ? ' selected' : ''
+        return `<option value="${p.id}"${selected}>${escapeHtml(label)}</option>`
+      })
+      .join('')
+
+  return `
+    <div class="d-flex align-items-center mb-1 booking-product-row" data-row-index="${index}">
+      <select class="form-select form-select-sm booking-product-select">
+        ${options}
+      </select>
+      <input
+        type="number"
+        min="1"
+        step="1"
+        class="form-control form-control-sm ms-1 booking-product-qty"
+        value="${qty}"
+      />
+      <button
+        type="button"
+        class="btn btn-sm btn-outline-danger ms-1 booking-product-remove"
+        aria-label="Remove product line"
+      >
+        &times;
+      </button>
+    </div>
+  `
+}
+
+// tiny utility for safe text
+function escapeHtml (str) {
+  if (!str) return ''
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
 
 function buildTimeSlots () {
   const slots = []
@@ -804,6 +1023,8 @@ function jobTypeClass (jobType) {
       return 'booking-service-major'
     case 'service':
       return 'booking-service-expert'
+    case 'transit':
+      return 'booking-service-transit'
     default:
       return 'booking-service-min'
   }
