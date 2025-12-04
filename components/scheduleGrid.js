@@ -54,25 +54,48 @@ export function initScheduleGrid () {
   document.addEventListener('mousemove', onResizeMove)
   document.addEventListener('mouseup', onResizeEnd)
 
+  window.addEventListener('peopleUpdated', refreshData)
+  window.addEventListener('productsUpdated', refreshData)
+
   refreshData()
 }
 
 /* ---------------- data & label ---------------- */
 
 async function refreshData () {
-  teams = await api.getTeams()
-  if (api.getPeople) {
-    people = await api.getPeople()
-  }
-  if (api.getProducts) {
-    products = await api.getProducts()
-  }
-  const weekStart = getMonday(currentDate)
-  bookings = await api.getBookingsForWeek(weekStart)
+  try {
+    // load teams
+    teams = await api.getTeams()
 
-  populateModalOptions()
-  renderLabel()
-  renderGrid()
+    // optional: load people & products if those API functions exist
+    if (typeof api.getPeople === 'function') {
+      people = await api.getPeople()
+    }
+    if (typeof api.getProducts === 'function') {
+      products = await api.getProducts()
+    }
+
+    // load bookings for the current week
+    const weekStart = getMonday(currentDate)
+    bookings = await api.getBookingsForWeek(weekStart)
+
+    // debug: see what we actually got
+    console.log(
+      '[refreshData]',
+      'currentDate =',
+      currentDate.toISOString().slice(0, 10),
+      'weekStart =',
+      weekStart.toISOString().slice(0, 10),
+      'bookings =',
+      bookings
+    )
+
+    populateModalOptions()
+    renderLabel()
+    renderGrid()
+  } catch (err) {
+    console.error('refreshData failed', err)
+  }
 }
 
 function renderLabel () {
@@ -131,7 +154,7 @@ function renderGrid () {
     })
   } else {
     const weekStart = getMonday(currentDate)
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 6; i++) {
       const d = addDays(weekStart, i)
       days.push({
         date: d,
@@ -217,25 +240,18 @@ function renderGrid () {
           const b = cell.booking
           const cssClass = jobTypeClass(b.jobType)
 
-          // top label: customer OR generic
-          const customerLabel = b.customerName || 'Booking'
+          const customerBits = [
+            b.customerName && b.customerName.trim(),
+            b.clientPhone && b.clientPhone.trim(),
+            b.address && b.address.split('\n')[0].trim()
+          ].filter(Boolean)
 
-          // human-readable job type
-          const jobLabel = jobTypeLabel(b.jobType)
+          const customerLabel = customerBits.length
+            ? customerBits.join(' | ')
+            : 'Booking'
 
-          // first line of notes / order / address as a short description
-          const notesSummary = (b.notes || '').split('\n')[0].trim()
-          const addressSummary = (b.address || '').split('\n')[0].trim()
-          const orderSummary = (b.orderNumbers || '').split('\n')[0].trim()
-
-          // build one compact meta line
-          const metaBits = []
-          if (jobLabel) metaBits.push(jobLabel)
-          if (notesSummary) metaBits.push(notesSummary)
-          else if (addressSummary) metaBits.push(addressSummary)
-          else if (orderSummary) metaBits.push(orderSummary)
-
-          const metaLine = metaBits.join(' – ')
+          // summary/meta line
+          const metaLine = buildBookingMetaLine(b)
 
           html += `
             <td
@@ -666,6 +682,173 @@ function setupToolbar () {
       }
       refreshData()
     })
+
+  const printBtn = document.getElementById('btnPrintDay')
+  if (printBtn) {
+    printBtn.addEventListener('click', handlePrintDay)
+  }
+}
+
+function handlePrintDay () {
+  const printArea = document.getElementById('printArea')
+  if (!printArea) return
+
+  const dayISO = formatDateISO(currentDate)
+  const dayLabel = currentDate.toLocaleDateString(undefined, {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric'
+  })
+
+  // All bookings for this date
+  const dayBookings = bookings
+    .filter(b => b.date === dayISO)
+    .sort((a, b) => (a.startTime > b.startTime ? 1 : -1))
+
+  let html = `
+    <div class="print-day-header">
+      <h1>Job cards for ${escapeHtml(dayLabel)}</h1>
+      <div class="small">
+        Generated ${escapeHtml(new Date().toLocaleString())}
+      </div>
+    </div>
+  `
+
+  if (!dayBookings.length) {
+    html += '<p>No bookings for this day.</p>'
+  } else {
+    teams.forEach(team => {
+      const teamBookings = dayBookings.filter(b => b.teamId === team.id)
+      if (!teamBookings.length) return
+
+      // Crew for this team on this day = union of crew from all jobs
+      const crewIdSet = new Set()
+      teamBookings.forEach(b => {
+        if (Array.isArray(b.crew)) {
+          b.crew.forEach(id => crewIdSet.add(String(id)))
+        }
+      })
+      const crewList = [...crewIdSet]
+        .map(id => people.find(p => String(p.id) === String(id)))
+        .filter(Boolean)
+      const crewNames =
+        crewList.length > 0
+          ? crewList.map(p => p.name).join(', ')
+          : 'No crew assigned yet'
+
+      html += `
+        <div class="print-team-page">
+          <div class="print-team-header">
+            <h2>${escapeHtml(team.name)} – ${escapeHtml(dayLabel)}</h2>
+            <div class="small">
+              Crew for the day: ${escapeHtml(crewNames)}
+            </div>
+          </div>
+      `
+
+      teamBookings.forEach((b, idx) => {
+        const jobLabel = jobTypeLabel(b.jobType) || 'Job'
+
+        // Crew for THIS job
+        const jobCrewNames = Array.isArray(b.crew)
+          ? b.crew
+            .map(id => {
+              const person = people.find(p => String(p.id) === String(id))
+              return person ? person.name : ''
+            })
+            .filter(Boolean)
+            .join(', ')
+          : ''
+
+        // Products for this job
+        const productLines = Array.isArray(b.products)
+          ? b.products
+            .map(item => {
+              const prod = products.find(
+                p => String(p.id) === String(item.productId)
+              )
+              if (!prod) return ''
+              const label = prod.subType
+                ? `${prod.name} – ${prod.subType}`
+                : prod.name
+              const qty = item.quantity != null ? item.quantity : 1
+              return `${qty}× ${label}`
+            })
+            .filter(Boolean)
+            .join('; ')
+          : ''
+
+        html += `
+          <div class="print-jobcard">
+            <div class="print-jobcard-header">
+              <span>${escapeHtml(jobLabel)} #${idx + 1}</span>
+              <span>
+                ${escapeHtml(b.startTime || '')}
+                (${escapeHtml(String(b.durationHours ?? ''))} h)
+              </span>
+            </div>
+
+            <div class="print-jobcard-row">
+              <div class="print-jobcard-label">Customer</div>
+              <div class="print-jobcard-value">
+                ${escapeHtml(b.customerName || '')}
+              </div>
+            </div>
+
+            <div class="print-jobcard-row">
+              <div class="print-jobcard-label">Phone</div>
+              <div class="print-jobcard-value">
+                ${escapeHtml(b.clientPhone || '')}
+              </div>
+            </div>
+
+            <div class="print-jobcard-row">
+              <div class="print-jobcard-label">Address</div>
+              <div class="print-jobcard-value">
+                ${escapeHtml((b.address || '').replace(/\n/g, ', '))}
+              </div>
+            </div>
+
+            <div class="print-jobcard-row">
+              <div class="print-jobcard-label">Order #</div>
+              <div class="print-jobcard-value">
+                ${escapeHtml(b.orderNumbers || '')}
+              </div>
+            </div>
+
+            <div class="print-jobcard-row">
+              <div class="print-jobcard-label">Products</div>
+              <div class="print-jobcard-value">
+                ${escapeHtml(productLines)}
+              </div>
+            </div>
+
+            <div class="print-jobcard-row">
+              <div class="print-jobcard-label">Crew</div>
+              <div class="print-jobcard-value">
+                ${escapeHtml(jobCrewNames || '')}
+              </div>
+            </div>
+
+            <div class="print-jobcard-row">
+              <div class="print-jobcard-label">Notes</div>
+              <div class="print-jobcard-value">
+                ${escapeHtml(b.notes || '')}
+              </div>
+            </div>
+          </div>
+        `
+      })
+
+      html += '</div>' // end .print-team-page
+    })
+  }
+
+  printArea.innerHTML = html
+
+  // Browser print dialog; choose "Save as PDF" for a file
+  window.print()
 }
 
 /* ---------------- modal wiring ---------------- */
@@ -893,14 +1076,55 @@ function renderCrewList (booking) {
     return
   }
 
+  // Current date + team from booking or from the modal fields
+  const dateInput = document.getElementById('booking-date')
+  const teamSelect = document.getElementById('booking-team')
+
+  const dateISO =
+    (booking && booking.date) ||
+    (dateInput && dateInput.value) ||
+    null
+
+  const teamId =
+    (booking && booking.teamId) ||
+    (teamSelect && teamSelect.value) ||
+    null
+
+  // People already booked on another team for this date
+  const unavailableIds = new Set()
+
+  if (dateISO && teamId) {
+    bookings.forEach(b => {
+      if (b.date !== dateISO) return
+      if (b.teamId === teamId) return // same team is allowed
+      if (!Array.isArray(b.crew)) return
+      b.crew.forEach(pid => unavailableIds.add(String(pid)))
+    })
+  }
+
+  // Which people are already selected for THIS booking
   const selectedIds = new Set(
     (booking && booking.crew ? booking.crew : []).map(String)
   )
 
   container.innerHTML = people
     .map(p => {
-      const checked = selectedIds.has(String(p.id)) ? 'checked' : ''
-      const roleText = p.role ? ` <span class="text-muted small">(${escapeHtml(p.role)})</span>` : ''
+      const idStr = String(p.id)
+      const checked = selectedIds.has(idStr) ? 'checked' : ''
+
+      // Disable if booked on another team this day and not already selected here
+      const isUnavailable =
+        unavailableIds.has(idStr) && !selectedIds.has(idStr)
+      const disabled = isUnavailable ? 'disabled' : ''
+
+      const roleText = p.role
+        ? ` <span class="text-muted small">(${escapeHtml(p.role)})</span>`
+        : ''
+
+      const unavailableNote = isUnavailable
+        ? ' <span class="text-danger small ms-1">(Booked on another team today)</span>'
+        : ''
+
       return `
         <div class="form-check form-check-sm">
           <input
@@ -909,9 +1133,10 @@ function renderCrewList (booking) {
             value="${p.id}"
             id="crew-${p.id}"
             ${checked}
+            ${disabled}
           />
           <label class="form-check-label" for="crew-${p.id}">
-            ${escapeHtml(p.name)}${roleText}
+            ${escapeHtml(p.name)}${roleText}${unavailableNote}
           </label>
         </div>
       `
@@ -1004,6 +1229,44 @@ function escapeHtml (str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;')
+}
+
+function buildBookingMetaLine (b) {
+  const bits = []
+
+  // Job type label (Install, Measure, etc.)
+  const jobLabel = jobTypeLabel(b.jobType)
+  if (jobLabel) bits.push(jobLabel)
+
+  // Notes / address / order numbers – same priority as before
+  const notesSummary = (b.notes || '').split('\n')[0].trim()
+  const orderSummary = (b.orderNumbers || '').split('\n')[0].trim()
+
+  if (notesSummary) {
+    bits.push(notesSummary)
+  } else if (orderSummary) {
+    bits.push(orderSummary)
+  }
+
+  // Product summary – first product only, e.g. "2× Blind – Wood"
+  if (Array.isArray(b.products) && b.products.length && products && products.length) {
+    const first = b.products[0]
+    const prod = products.find(p => String(p.id) === String(first.productId))
+    if (prod) {
+      const label = prod.subType
+        ? `${prod.name} – ${prod.subType}`
+        : prod.name
+      const qty = first.quantity != null ? first.quantity : 1
+      bits.push(`${qty}× ${label}`)
+    }
+  }
+
+  // Crew count
+  if (Array.isArray(b.crew) && b.crew.length) {
+    bits.push(`${b.crew.length} crew`)
+  }
+
+  return bits.join(' – ')
 }
 
 function buildTimeSlots () {

@@ -107,8 +107,10 @@ async function onFormSubmit (e) {
   try {
     if (id) {
       await api.updateProduct(payload)
+      window.dispatchEvent(new CustomEvent('productsUpdated'))
     } else {
       await api.createProduct(payload)
+      window.dispatchEvent(new CustomEvent('productsUpdated'))
     }
     clearForm()
     await refreshProducts()
@@ -140,6 +142,7 @@ async function handleDeleteProduct (product) {
   try {
     await api.deleteProduct(product.id)
     await refreshProducts()
+    window.dispatchEvent(new CustomEvent('productsUpdated'))
     const idInput = document.getElementById('product-id')
     if (idInput && idInput.value === String(product.id)) {
       clearForm()

@@ -110,8 +110,10 @@ async function onFormSubmit (e) {
   try {
     if (id) {
       await api.updatePerson(payload)
+      window.dispatchEvent(new CustomEvent('peopleUpdated'))
     } else {
       await api.createPerson(payload)
+      window.dispatchEvent(new CustomEvent('peopleUpdated'))
     }
     clearForm()
     await refreshPeople()
@@ -143,6 +145,7 @@ async function handleDeletePerson (person) {
   try {
     await api.deletePerson(person.id)
     await refreshPeople()
+    window.dispatchEvent(new CustomEvent('peopleUpdated'))
     // if the deleted person was being edited, clear form
     const idInput = document.getElementById('person-id')
     if (idInput && idInput.value === String(person.id)) {

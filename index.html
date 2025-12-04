@@ -17,7 +17,7 @@
   </head>
 
   <body class="bg-light">
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-3">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-3 no-print">
       <div class="container-fluid">
         <span class="navbar-brand fw-bold">WindowVert</span>
         <span class="navbar-text text-white-50">
@@ -26,7 +26,7 @@
       </div>
     </nav>
 
-    <main class="container mb-5">
+    <main class="container mb-5 no-print">
       <!-- Tabs -->
       <ul class="nav nav-tabs mb-3" id="mainTabs" role="tablist">
         <li class="nav-item" role="presentation">
@@ -145,6 +145,13 @@
                 Next &raquo;
             </button>
             </div>
+
+            <button
+                type="button"
+                class="btn btn-outline-secondary btn-sm ms-auto"
+                id="btnPrintDay">
+                Print day
+            </button>
         </div>
         </div>
 
@@ -566,6 +573,8 @@
       </div>
     </div>
 
+    <!-- Print-only area -->
+    <div id="printArea" class="print-area"></div>
     <!-- Bootstrap JS (for modal & tabs) -->
     <script
       src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"

@@ -1,365 +1,155 @@
-/* Simple styling for schedule grid */
-.schedule-table th,
-.schedule-table td {
-font-size: 0.8rem;
-vertical-align: middle;
-text-align: center;
-}
-
-.schedule-slot {
-cursor: pointer;
-min-height: 40px;
-}
-
-.schedule-slot.empty:hover {
-background-color: #f1f3f5;
-}
-
-.booking-pill {
-font-size: 0.75rem;
-}
+/* ===========================
+   Basic layout / shared bits
+   =========================== */
 
 .team-column {
-min-height: 250px;
+  min-height: 250px;
 }
 
 .list-group-item[data-clickable="true"] {
-cursor: pointer;
+  cursor: pointer;
 }
 
 .list-group-item[data-clickable="true"]:hover {
-background-color: #f8f9fa;
+  background-color: #f8f9fa;
 }
 
-.day-board {
-display: grid;
-grid-template-columns: 80px repeat(auto-fit, minmax(180px, 1fr));
-border: 1px solid #dee2e6;
-border-radius: 0.25rem;
-background-color: #fff;
-overflow-y: auto;   /* was: hidden */
-overflow-x: hidden;
-height: 600px;
-position: relative
+.people-role-badge {
+  font-size: 0.7rem;
+  font-weight: 500;
 }
 
-.day-board-time-column {
-border-right: 1px solid #dee2e6;
-position: relative;
-}
-
-.day-board-team-column {
-position: relative;
-border-right: 1px solid #f1f3f5;
-}
-
-.day-board-team-header {
-position: sticky;
-top: 0;
-z-index: 2;
-background-color: #f8f9fa;
-font-size: 0.85rem;
-text-align: center;
-padding: 0.25rem 0.5rem;
-border-bottom: 1px solid #dee2e6;
-}
-
-.day-board-time-label {
-position: absolute;
-left: 0.25rem;
-font-size: 0.75rem;
-color: #868e96;
-transform: translateY(-50%);
-}
-
-.day-board-day-label {
-position: absolute;
-left: 0.25rem;
-font-size: 0.75rem;
-font-weight: 600;
-color: #495057;
-}
-
-.day-board-slot-line {
-position: absolute;
-left: 0;
-right: 0;
-height: 1px;
-background-color: #f1f3f5;
-}
-
-/* Day view keeps the original compact height */
-#day-board.day-board {
-height: 600px;
-}
-
-/* Week view: much taller, so each day band has lots of vertical space */
-#week-board.day-board {
-height: 2000px; /* tweak 1600–2400 to taste */
-}
-
-.day-board-team-body {
-position: absolute;
-top: 32px;  /* below header */
-bottom: 0;
-left: 0;
-right: 0;
-}
-
-.booking-card {
-position: absolute;
-left: 6px;
-right: 6px;
-border-radius: 4px;
-font-size: 0.75rem;
-padding: 4px 6px;
-overflow: hidden;
-cursor: move;
-box-shadow: 0 0 0 1px rgba(0,0,0,0.05);
-user-select: none;
-}
-
-.booking-card[data-type="measure"] {
-background-color: #bee3f8;
-}
-
-.booking-card[data-type="install"] {
-background-color: #c6f6d5;
-}
-
-.booking-card[data-type="service"] {
-background-color: #fef3c7;
-}
-
-.booking-card[data-type="other"] {
-background-color: #e2e8f0;
-}
-
-.booking-resize-handle {
-position: absolute;
-bottom: 0;
-left: 0;
-right: 0;
-height: 6px;
-cursor: ns-resize;
-background: rgba(0,0,0,0.08);
-}
-
-.booking-card.dragging {
-opacity: 0.8;
-box-shadow: 0 0 0 2px #228be6;
-}
-
-.booking-card.resizing {
-opacity: 0.9;
-box-shadow: 0 0 0 2px #fab005;
-}
-
-.booking-card .text-truncate {
-white-space: nowrap;
-overflow: hidden;
-text-overflow: ellipsis;
-}
+/* ===========================
+   Schedule toolbar / header
+   =========================== */
 
 .schedule-toolbar {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 0;
+  z-index: 1020;              /* above the card body */
+  border-bottom: 1px solid #dee2e6;
 }
 
 .schedule-week-label {
-    font-weight: 600;
-    font-size: 1rem;
+  font-weight: 600;
+  font-size: 1.15rem;
+  margin: 0 1rem;
 }
 
 .schedule-grid-container {
-    margin-top: 1rem;
+  margin-top: 1rem;
 }
 
 .day-section .day-header {
-    font-weight: 600;
-    margin-bottom: 0.25rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
 }
 
+/* ===========================
+   Schedule grid (day / week)
+   =========================== */
+
 .schedule-grid {
-    border-collapse: collapse;
-    width: 100%;
-    font-size: 0.8rem;
-    table-layout: fixed;     /* 🔑 equal column widths */
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.8rem;
+  table-layout: fixed;       /* equal column widths */
 }
 
 .schedule-grid th,
 .schedule-grid td {
-    border: 1px solid #dee2e6;
-    padding: 0.15rem 0.25rem;
-    vertical-align: top;
-    position: relative;
-    overflow: hidden;          /* prevent column stretching */
-    text-overflow: ellipsis;
-    white-space: nowrap;       /* or remove if you want wrapping */
+  border: 1px solid #dee2e6;
+  padding: 0.15rem 0.25rem;
+  vertical-align: top;
+  position: relative;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;       /* remove if you prefer wrapping in header cells */
 }
 
 .schedule-grid thead th {
-    background-color: #f8f9fa;
-    text-align: center;
-    font-weight: 600;
+  background-color: #f8f9fa;
+  text-align: center;
+  font-weight: 600;
 }
 
 .time-col {
-    width: 60px;
+  width: 60px;
 }
 
 .time-cell {
-    white-space: nowrap;
-    background-color: #f8f9fa;
-    text-align: right;
-    padding-right: 0.5rem;
+  white-space: nowrap;
+  background-color: #f8f9fa;
+  text-align: right;
+  padding-right: 0.5rem;
 }
 
 .mechanic-col {
-    min-width: 120px;
+  min-width: 120px;
 }
 
+/* Each slot cell in the grid */
 .schedule-slot {
-    height: 26px;
-    cursor: pointer;
+  height: 26px;
+  cursor: pointer;
+  position: relative;        /* needed for drop-target outline etc. */
 }
 
-.booking-block {
-    width: 100%;
-    height: 100%;
-    font-size: 0.75rem;
-    padding: 2px 4px;
-    border-radius: 4px;
-    overflow: hidden;      /* keep, so content doesn’t spill out */
-    /* allow wrapping for multiple lines */
-    white-space: normal;
-}
-
-/* new “lines” inside the block */
-.booking-line-time {
-    font-weight: 700;
-    font-size: 0.8rem;
-    line-height: 1.1;
-}
-
-.booking-line-customer {
-    font-weight: 600;
-    font-size: 0.8rem;
-    line-height: 1.2;
-}
-
-.booking-line-meta {
-    font-size: 0.72rem;
-    line-height: 1.2;
-    opacity: 0.95;
-}
-
-.booking-service-pro {
-    background-color: #0d6efd;
-    color: #fff;
-}
-
-.booking-service-major {
-    background-color: #0dcaf0;
-    color: #000;
-}
-
-.booking-service-expert {
-    background-color: #20c997;
-    color: #000;
-}
-
-.booking-service-min {
-    background-color: #ffc107;
-    color: #000;
-}
-
-.schedule-legend span {
-    display: inline-flex;
-    align-items: center;
-    margin-right: 1rem;
-    font-size: 0.8rem;
-}
-
-.schedule-legend .legend-color {
-    display: inline-block;
-    width: 14px;
-    height: 14px;
-    border-radius: 3px;
-    margin-right: 6px;
-}
-
-.booking-block.dragging {
-    opacity: 0.5;           /* optional: visual feedback */
-    pointer-events: none;   /* key: let the mouse "see through" the block */
-}
-
+/* Highlighted drop slot(s) for drag-to-move */
 .schedule-slot.drop-target {
-    outline: 2px dashed rgba(0, 123, 255, 0.6);
-    outline-offset: -2px;
-    background-color: rgba(0, 123, 255, 0.05); /* Optional: Adds a faint blue tint */
-    z-index: 10; /* Ensures the outline sits on top of borders */
-}
-.schedule-slot {
-    position: relative;
+  outline: 2px dashed rgba(0, 123, 255, 0.6);
+  outline-offset: -2px;
+  background-color: rgba(0, 123, 255, 0.05);
+  z-index: 10;
 }
 
-/* Add this to your stylesheet */
-.booking-block.is-dragging {
-    opacity: 0.01; /* Make it almost invisible so you see the slots underneath */
-    pointer-events: none; /* CRITICAL: Allows mouse to "see through" to the slots */
-}
+/* ===========================
+   Booking blocks (in-grid)
+   =========================== */
 
-
-.schedule-slot.drop-target {
-outline: 2px dashed rgba(0, 123, 255, 0.6);
-outline-offset: -2px;
-background-color: rgba(0, 123, 255, 0.05);
-z-index: 10;
-}
-
-.schedule-toolbar {
-  padding: 0.75rem 0;      /* adds top + bottom spacing */
-}
-
-.schedule-toolbar .d-flex {
-  gap: 1rem;               /* spacing BETWEEN view toggle, label, legend */
-}
-
-.schedule-week-label {
-  font-size: 1.15rem;
-  font-weight: 600;
-  margin: 0 1rem;          /* space around the date text */
-}
-
+/* Outer block inside each slot cell */
 .booking-block {
-  position: relative; /* needed for the resize handle positioning */
-}
-
-.booking-resize-handle {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 6px;
-  cursor: ns-resize;
-  background-color: rgba(0,0,0,0.08);
-}
-
-/* Booking block basics */
-.booking-block {
-  position: relative;
+  position: relative;        /* required for resize handle positioning */
+  width: 100%;
+  height: 100%;
+  font-size: 0.75rem;
+  padding: 2px 4px;
+  border-radius: 4px;
+  overflow: hidden;
+  white-space: normal;       /* allow wrapping for multiple lines */
   cursor: grab;
 }
 
-.booking-block.dragging {
-  opacity: 0.4;
+/* “Lines” inside the block */
+.booking-line-time {
+  font-weight: 700;
+  font-size: 0.8rem;
+  line-height: 1.1;
 }
 
-/* Ghost element that follows the mouse while dragging */
+.booking-line-customer {
+  font-weight: 600;
+  font-size: 0.8rem;
+  line-height: 1.2;
+}
+
+.booking-line-meta {
+  font-size: 0.72rem;
+  line-height: 1.2;
+  opacity: 0.95;
+}
+
+/* Drag feedback (original block) */
+.booking-block.dragging {
+  opacity: 0.4;
+  pointer-events: none;      /* let the mouse “see through” to slots */
+}
+
+/* Ghost that follows mouse while dragging */
 .booking-drag-ghost {
   position: fixed;
   pointer-events: none;
@@ -367,24 +157,18 @@ z-index: 10;
   opacity: 0.9;
 }
 
-/* Bottom bar used as "extend/shrink" handle */
+/* Resize handle at the bottom of the booking block */
 .booking-resize-handle {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
-  height: 8px;       /* was 6px */
+  height: 8px;
   cursor: ns-resize;
   background-color: rgba(0, 0, 0, 0.15);
 }
 
-/* Highlighted drop slot(s) */
-.schedule-slot.drop-target {
-  outline: 2px dashed rgba(0, 123, 255, 0.6);
-  outline-offset: -2px;
-  background-color: rgba(0, 123, 255, 0.05);
-}
-
+/* Visual feedback while resizing */
 .booking-block.resizing {
   opacity: 0.5;
 }
@@ -395,6 +179,7 @@ z-index: 10;
   z-index: 9999;
 }
 
+/* Optional “legacy-style” label structure if used anywhere */
 .booking-label {
   font-size: 0.78rem;
   line-height: 1.2;
@@ -414,24 +199,57 @@ z-index: 10;
   font-size: 0.72rem;
 }
 
-/* Sticky toolbar for schedule header (Day/Week + nav) */
-.schedule-toolbar {
-  z-index: 1020;          /* above the card body */
-  border-bottom: 1px solid #dee2e6;
+/* ===========================
+   Booking type colours
+   =========================== */
+
+.booking-service-pro {
+  background-color: #0d6efd;
+  color: #fff;
 }
 
-/* Optional: make the label & legend row look a bit tighter if you like */
-/* .schedule-week-label { font-weight: 600; } */
-
-.people-role-badge {
-  font-size: 0.7rem;
-  font-weight: 500;
+.booking-service-major {
+  background-color: #0dcaf0;
+  color: #000;
 }
 
-.people-role-badge {
-  font-size: 0.7rem;
-  font-weight: 500;
+.booking-service-expert {
+  background-color: #20c997;
+  color: #000;
 }
+
+.booking-service-min {
+  background-color: #ffc107;
+  color: #000;
+}
+
+.booking-service-transit {
+  background-color: #6c757d;
+  color: #fff;
+}
+
+/* ===========================
+   Legend styling
+   =========================== */
+
+.schedule-legend span {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 1rem;
+  font-size: 0.8rem;
+}
+
+.schedule-legend .legend-color {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  margin-right: 6px;
+}
+
+/* ===========================
+   Booking modal extras
+   =========================== */
 
 .booking-products .booking-product-row:last-child {
   margin-bottom: 0;
@@ -441,7 +259,101 @@ z-index: 10;
   margin-bottom: 0.25rem;
 }
 
-.booking-service-transit {
-  background-color: #6c757d;
-  color: #fff;
+/* ===========================
+   Print styles (job cards)
+   =========================== */
+
+.print-area {
+  display: none;
+  padding: 1.5rem;
+  background: #fff;
+  color: #000;
+  font-size: 0.85rem;
+}
+
+.print-day-header {
+  margin-bottom: 1rem;
+}
+
+.print-day-header h1 {
+  font-size: 1.4rem;
+  margin-bottom: 0.25rem;
+}
+
+.print-day-header .small {
+  font-size: 0.8rem;
+  color: #555;
+}
+
+/* Each team = its own page */
+.print-team-page {
+  page-break-after: always;
+  padding-top: 0.75rem;
+  border-top: 1px solid #ccc;
+}
+
+.print-team-header {
+  margin-bottom: 0.5rem;
+}
+
+.print-team-header h2 {
+  font-size: 1.1rem;
+  margin-bottom: 0.25rem;
+}
+
+.print-team-header .small {
+  font-size: 0.8rem;
+  color: #555;
+}
+
+/* Job card layout */
+.print-jobcard {
+  border: 1px solid #ddd;
+  border-radius: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  margin-top: 0.6rem;
+}
+
+.print-jobcard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.3rem;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.print-jobcard-header span {
+  font-weight: normal;
+  font-size: 0.8rem;
+}
+
+.print-jobcard-row {
+  display: flex;
+  font-size: 0.8rem;
+}
+
+.print-jobcard-label {
+  width: 80px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.print-jobcard-value {
+  flex: 1;
+}
+
+/* Hide app UI when printing, show print sheet instead */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  .print-area {
+    display: block !important;
+  }
+
+  body {
+    background: #fff;
+  }
 }

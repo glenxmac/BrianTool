@@ -16,11 +16,13 @@ export function addDays (date, days) {
 
 export function formatDateISO (date) {
   const d = new Date(date)
+  // normalise to local midnight
+  d.setHours(0, 0, 0, 0)
+
   const year = d.getFullYear()
-  const month = String(d.getMonth() + 1).padStart(2, '0') // 0-based
+  const month = String(d.getMonth() + 1).padStart(2, '0')
   const day = String(d.getDate()).padStart(2, '0')
 
-  // Local YYYY-MM-DD, no timezone shift
   return `${year}-${month}-${day}`
 }
 

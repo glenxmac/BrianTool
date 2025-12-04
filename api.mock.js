@@ -21,6 +21,12 @@ let teams = [
     name: 'Install Team B',
     teamLeadId: 'emp-3',
     memberIds: ['emp-3', 'emp-5']
+  },
+  {
+    id: 'team-3',
+    name: 'Install Team C',
+    teamLeadId: 'emp-3',
+    memberIds: ['emp-3', 'emp-5']
   }
 ]
 
@@ -59,7 +65,7 @@ let nextProductId = 1
 /* ------------- helpers ------------- */
 
 function todayISO () {
-  return new Date().toISOString().slice(0, 10)
+  return toLocalISO(new Date())
 }
 
 function clone (obj) {
@@ -68,6 +74,15 @@ function clone (obj) {
 
 function generateId (prefix) {
   return `${prefix}-${Math.random().toString(36).slice(2, 9)}`
+}
+
+function toLocalISO (date) {
+  const d = new Date(date)
+  d.setHours(0, 0, 0, 0)
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 /* -------- employees (readonly) ----- */
@@ -141,8 +156,8 @@ export async function getBookingsForWeek (weekStart) {
   const end = new Date(weekStart)
   end.setDate(end.getDate() + 6)
 
-  const startISO = start.toISOString().slice(0, 10)
-  const endISO = end.toISOString().slice(0, 10)
+  const startISO = toLocalISO(start)
+  const endISO = toLocalISO(end)
 
   const result = bookings.filter(b => b.date >= startISO && b.date <= endISO)
   return clone(result)
