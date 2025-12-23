@@ -1,5 +1,5 @@
 // components/people.js
-import * as api from '../api.mock.js'
+import * as api from '../api.supabase.js'
 
 let people = []
 
@@ -90,12 +90,11 @@ function renderPeopleTable () {
 
 async function onFormSubmit (e) {
   e.preventDefault()
-  const idInput = document.getElementById('person-id')
+
   const nameInput = document.getElementById('person-name')
   const roleSelect = document.getElementById('person-role')
   const phoneInput = document.getElementById('person-phone')
 
-  const id = idInput.value || null
   const name = nameInput.value.trim()
   const role = roleSelect.value
   const phone = phoneInput.value.trim()
@@ -105,16 +104,13 @@ async function onFormSubmit (e) {
     return
   }
 
-  const payload = { id, name, role, phone }
+  const payload = { name, role, phone }
 
   try {
-    if (id) {
-      await api.updatePerson(payload)
-      window.dispatchEvent(new CustomEvent('peopleUpdated'))
-    } else {
-      await api.createPerson(payload)
-      window.dispatchEvent(new CustomEvent('peopleUpdated'))
-    }
+
+    await api.createPerson(payload)
+    window.dispatchEvent(new CustomEvent('peopleUpdated'))
+    
     clearForm()
     await refreshPeople()
   } catch (err) {

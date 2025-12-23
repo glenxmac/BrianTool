@@ -1,5 +1,5 @@
 // components/products.js
-import * as api from '../api.mock.js'
+import * as api from '../api.supabase.js'
 
 let products = []
 
@@ -62,9 +62,7 @@ function renderProductsTable () {
     .map(p => {
       return `
         <tr data-product-id="${p.id}">
-          <td>${escapeHtml(p.productId || '')}</td>
           <td>${escapeHtml(p.name)}</td>
-          <td>${escapeHtml(p.category || '')}</td>
           <td>${escapeHtml(p.subType || '')}</td>
           <td class="text-end">
             <button
@@ -87,31 +85,24 @@ async function onFormSubmit (e) {
   e.preventDefault()
   const idInput = document.getElementById('product-id')
   const nameInput = document.getElementById('product-name')
-  const categoryInput = document.getElementById('product-category')
   const subTypeInput = document.getElementById('product-subtype')
-  const productIdInput = document.getElementById('product-code')
 
-  const id = idInput.value || null
+  //const id = idInput.value || null
   const name = nameInput.value.trim()
-  const category = categoryInput.value.trim()
   const subType = subTypeInput.value.trim()
-  const productId = productIdInput.value.trim()
 
   if (!name) {
     nameInput.focus()
     return
   }
 
-  const payload = { id, name, category, subType, productId }
+  const payload = { name, sub_type: subType }
 
   try {
-    if (id) {
-      await api.updateProduct(payload)
-      window.dispatchEvent(new CustomEvent('productsUpdated'))
-    } else {
-      await api.createProduct(payload)
-      window.dispatchEvent(new CustomEvent('productsUpdated'))
-    }
+    
+    await api.createProduct(payload)
+    window.dispatchEvent(new CustomEvent('productsUpdated'))
+    
     clearForm()
     await refreshProducts()
   } catch (err) {
@@ -158,33 +149,25 @@ async function handleDeleteProduct (product) {
 function fillForm (product) {
   const idInput = document.getElementById('product-id')
   const nameInput = document.getElementById('product-name')
-  const categoryInput = document.getElementById('product-category')
   const subTypeInput = document.getElementById('product-subtype')
-  const productIdInput = document.getElementById('product-code')
 
   if (!idInput) return
 
-  idInput.value = product.id
+  //idInput.value = product.id
   nameInput.value = product.name || ''
-  categoryInput.value = product.category || ''
   subTypeInput.value = product.subType || ''
-  productIdInput.value = product.productId || ''
 }
 
 function clearForm () {
   const idInput = document.getElementById('product-id')
   const nameInput = document.getElementById('product-name')
-  const categoryInput = document.getElementById('product-category')
   const subTypeInput = document.getElementById('product-subtype')
-  const productIdInput = document.getElementById('product-code')
 
   if (!idInput) return
 
   idInput.value = ''
   nameInput.value = ''
-  categoryInput.value = ''
   subTypeInput.value = ''
-  productIdInput.value = ''
 }
 
 /* ------------ Small utils ------------ */

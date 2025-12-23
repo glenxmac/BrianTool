@@ -1,5 +1,5 @@
 // components/scheduleGrid.js
-import * as api from '../api.mock.js'
+import * as api from '../api.supabase.js'
 import {
   getMonday,
   addDays,

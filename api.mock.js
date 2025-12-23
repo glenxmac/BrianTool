@@ -57,10 +57,11 @@ let people = [
 let nextPersonId = 1
 
 let products = [
-  // optional seed data
-  { id: 'pr1', name: 'Blind', category: 'Blinds', subType: 'Wood', productId: 'BLD-WOOD' }
+  { id: '0001', name: 'Blind', subType: 'Wood' }
 ]
-let nextProductId = 1
+
+// numeric counter
+let nextProductId = 2 // corresponds to "0002"
 
 /* ------------- helpers ------------- */
 
@@ -314,14 +315,20 @@ export async function getProducts () {
 }
 
 export async function createProduct (payload) {
+  // convert numeric counter → zero-padded string
+  const id = String(nextProductId).padStart(4, '0')
+
   const newProduct = {
-    id: String(nextProductId++),
+    id,
     name: payload.name,
-    category: payload.category || '',
-    subType: payload.subType || '',
-    productId: payload.productId || ''
+    subType: payload.subType || ''
   }
+
   products.push(newProduct)
+
+  // increment for next time
+  nextProductId++
+
   return newProduct
 }
 

@@ -2,8 +2,9 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>WindowVert – Internal Scheduler</title>
+    <title>Windovert – Internal Scheduler</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/x-icon" href="/icons/favicon.ico">
 
     <!-- Bootstrap CSS (CDN) -->
     <link
@@ -19,10 +20,18 @@
   <body class="bg-light">
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-3 no-print">
       <div class="container-fluid">
-        <span class="navbar-brand fw-bold">WindowVert</span>
+        <span class="navbar-brand fw-bold">Windovert</span>
         <span class="navbar-text text-white-50">
           Internal Booking & Team Scheduler
         </span>
+
+        <!-- Auth status (Supabase) -->
+        <div class="ms-auto d-flex align-items-center gap-2" id="authBar">
+          <small class="text-white-50" id="authUserLabel">Not signed in</small>
+          <button class="btn btn-sm btn-outline-light d-none" id="btnSignOut" type="button">
+            Sign out
+          </button>
+        </div>
       </div>
     </nav>
 
@@ -308,15 +317,6 @@
                     />
                     </div>
 
-                    <div class="mb-3">
-                    <label for="product-category" class="form-label">Category</label>
-                    <input
-                        id="product-category"
-                        type="text"
-                        class="form-control form-control-sm"
-                        placeholder="e.g. Blinds"
-                    />
-                    </div>
 
                     <div class="mb-3">
                     <label for="product-subtype" class="form-label">Sub-product</label>
@@ -325,16 +325,6 @@
                         type="text"
                         class="form-control form-control-sm"
                         placeholder="e.g. Wood, Vinyl"
-                    />
-                    </div>
-
-                    <div class="mb-3">
-                    <label for="product-code" class="form-label">Product ID / Code</label>
-                    <input
-                        id="product-code"
-                        type="text"
-                        class="form-control form-control-sm"
-                        placeholder="Internal product code"
                     />
                     </div>
 
@@ -371,9 +361,7 @@
                     <table class="table table-sm mb-0" id="products-table">
                     <thead>
                         <tr>
-                        <th>Product ID</th>
                         <th>Name</th>
-                        <th>Category</th>
                         <th>Sub-product</th>
                         <th style="width:1%;"></th>
                         </tr>
@@ -573,8 +561,37 @@
       </div>
     </div>
 
+    <!-- Login modal (Supabase Auth) -->
+    <div class="modal fade" id="loginModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Sign in</h5>
+          </div>
+          <div class="modal-body">
+            <form id="loginForm">
+              <div class="mb-3">
+                <label class="form-label" for="loginEmail">Email</label>
+                <input class="form-control" id="loginEmail" type="email" autocomplete="username" required />
+              </div>
+              <div class="mb-2">
+                <label class="form-label" for="loginPassword">Password</label>
+                <input class="form-control" id="loginPassword" type="password" autocomplete="current-password" required />
+              </div>
+              <div class="alert alert-warning d-none" id="loginError"></div>
+              <button class="btn btn-primary w-100" type="submit" id="btnLoginSubmit">Sign in</button>
+            </form>
+            <div class="form-text mt-2">
+              Use the email/password from Supabase Auth (Dashboard → Authentication → Users).
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Print-only area -->
     <div id="printArea" class="print-area"></div>
+
     <!-- Bootstrap JS (for modal & tabs) -->
     <script
       src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
