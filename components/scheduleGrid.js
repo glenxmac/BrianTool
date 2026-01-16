@@ -1202,7 +1202,7 @@ function renderCrewList (booking) {
   if (dateISO && teamId) {
     bookings.forEach(b => {
       if (b.date !== dateISO) return
-      if (b.teamId === teamId) return // same team is allowed
+      if (b.teamId === teamId) return
       if (!Array.isArray(b.crew)) return
       b.crew.forEach(pid => unavailableIds.add(String(pid)))
     })
@@ -1213,12 +1213,21 @@ function renderCrewList (booking) {
     (booking && booking.crew ? booking.crew : []).map(String)
   )
 
-  container.innerHTML = people
+  // ✅ FILTER OUT SALES from crew list
+  const crewCandidates = (people || []).filter(p => {
+    const role = String(p.role || '').toLowerCase()
+    const isSales = role === 'sales'
+    // if a sales person was previously saved in crew (legacy data),
+    // still show them so you can untick/remove them
+    if (isSales && selectedIds.has(String(p.id))) return true
+    return !isSales
+  })
+
+  container.innerHTML = crewCandidates
     .map(p => {
       const idStr = String(p.id)
       const checked = selectedIds.has(idStr) ? 'checked' : ''
 
-      // Disable if booked on another team this day and not already selected here
       const isUnavailable =
         unavailableIds.has(idStr) && !selectedIds.has(idStr)
       const disabled = isUnavailable ? 'disabled' : ''
