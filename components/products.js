@@ -63,7 +63,7 @@ function renderProductsTable () {
       return `
         <tr data-product-id="${p.id}">
           <td>${escapeHtml(p.name)}</td>
-          <td>${escapeHtml(p.subType || '')}</td>
+          <td>${escapeHtml(p.sub_Type || '')}</td>
           <td class="text-end">
             <button
               type="button"
