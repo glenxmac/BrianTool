@@ -32,6 +32,59 @@ const DRAG_THRESHOLD = 4 // pixels before we treat as a drag
 
 let shouldScrollToToday = false
 
+// --- shape guards / compatibility ---
+// api.supabase.js already maps DB snake_case <-> JS camelCase.
+// This keeps the UI resilient if anything upstream returns raw rows or legacy fields.
+function normalizeBooking (b) {
+  if (!b || typeof b !== 'object') return b
+
+  const out = { ...b }
+
+  // teamId
+  if (out.teamId == null) {
+    if (out.team_id != null) out.teamId = out.team_id
+    else if (out.team != null && !Array.isArray(out.team) && typeof out.team !== 'object') out.teamId = out.team
+  }
+
+  // startTime / durationHours
+  if (out.startTime == null && out.start_time != null) out.startTime = out.start_time
+  if (out.durationHours == null && out.duration_hours != null) out.durationHours = out.duration_hours
+
+  // customer fields
+  if (out.customerName == null && out.customer_name != null) out.customerName = out.customer_name
+  if (out.jobType == null && out.job_type != null) out.jobType = out.job_type
+  if (out.clientPhone == null && out.client_phone != null) out.clientPhone = out.client_phone
+  if (out.orderNumbers == null && out.order_numbers != null) out.orderNumbers = out.order_numbers
+
+  // crew: support either `crew` or legacy `team` array
+  if (!Array.isArray(out.crew)) {
+    if (Array.isArray(out.team)) out.crew = out.team
+    else out.crew = []
+  }
+
+  // salespersonId (allocated salesperson for this job)
+  // Support both DB snake_case and upstream camelCase.
+  if (out.salespersonId == null && out.salesperson_id != null) {
+    out.salespersonId = out.salesperson_id
+  }
+
+  // products: default empty array
+  if (!Array.isArray(out.products)) out.products = []
+
+  // Clean up raw snake_case props (optional, but keeps console logs tidy)
+  delete out.team_id
+  delete out.start_time
+  delete out.duration_hours
+  delete out.customer_name
+  delete out.job_type
+  delete out.client_phone
+  delete out.order_numbers
+  // NOTE: we intentionally KEEP `salesperson_id` as well, because api.supabase.js
+  // may still expect snake_case when writing to PostgREST.
+
+  return out
+}
+
 export function initScheduleGrid () {
   scheduleGridContainer = document.getElementById('scheduleGridContainer')
   labelEl = document.getElementById('scheduleLabel')
@@ -77,7 +130,8 @@ async function refreshData () {
 
     // load bookings for the current week
     const weekStart = getMonday(currentDate)
-    bookings = await api.getBookingsForWeek(weekStart)
+    const rawBookings = await api.getBookingsForWeek(weekStart)
+    bookings = (rawBookings || []).map(normalizeBooking)
 
     // debug: see what we actually got
     console.log(
@@ -750,6 +804,13 @@ function handlePrintDay () {
       teamBookings.forEach((b, idx) => {
         const jobLabel = jobTypeLabel(b.jobType) || 'Job'
 
+        // Salesperson for THIS job (separate from crew)
+        const salespersonId = b.salesperson_id ?? b.salespersonId ?? null
+        const salespersonName = salespersonId
+          ? (people.find(p => String(p.id) === String(salespersonId)) || {}).name
+          : ''
+        const salespersonLabel = salespersonName || (salespersonId ? String(salespersonId) : '')
+
         // Crew for THIS job
         const jobCrewNames = Array.isArray(b.crew)
           ? b.crew
@@ -769,9 +830,8 @@ function handlePrintDay () {
                 p => String(p.id) === String(item.productId)
               )
               if (!prod) return ''
-              const label = prod.sub_type
-                ? `${prod.name} – ${prod.sub_type}`
-                : prod.name
+              const sub = prod.subType || prod.sub_type || ''
+              const label = sub ? `${prod.name} – ${sub}` : prod.name
               const qty = item.quantity != null ? item.quantity : 1
               return `${qty}× ${label}`
             })
@@ -793,6 +853,13 @@ function handlePrintDay () {
               <div class="print-jobcard-label">Customer</div>
               <div class="print-jobcard-value">
                 ${escapeHtml(b.customerName || '')}
+              </div>
+            </div>
+
+            <div class="print-jobcard-row">
+              <div class="print-jobcard-label">Sales</div>
+              <div class="print-jobcard-value">
+                ${escapeHtml(salespersonLabel || '')}
               </div>
             </div>
 
@@ -883,6 +950,36 @@ function populateModalOptions () {
       startSelect.value = prev
     }
   }
+
+  // Salesperson (separate from crew; can overlap across teams)
+  const salespersonSelect = document.getElementById('booking-salesperson')
+  if (salespersonSelect) {
+    const prev = salespersonSelect.value
+    salespersonSelect.innerHTML = ''
+
+    const salesPeople = (people || []).filter(
+      p => String(p.role || '').toLowerCase() === 'sales'
+    )
+
+    const noneOpt = document.createElement('option')
+    noneOpt.value = ''
+    noneOpt.textContent = '— None —'
+    salespersonSelect.appendChild(noneOpt)
+
+    salesPeople.forEach(p => {
+      const opt = document.createElement('option')
+      opt.value = p.id
+      opt.textContent = p.name
+      salespersonSelect.appendChild(opt)
+    })
+
+    // preserve selection if still valid
+    if (prev && salesPeople.some(p => String(p.id) === String(prev))) {
+      salespersonSelect.value = prev
+    } else {
+      salespersonSelect.value = ''
+    }
+  }
 }
 
 function setupModalHandlers () {
@@ -902,6 +999,7 @@ function setupModalHandlers () {
     const addressInput = document.getElementById('booking-address')
     const phoneInput = document.getElementById('booking-phone')
     const orderInput = document.getElementById('booking-orderNumbers')
+    const salespersonSelect = document.getElementById('booking-salesperson')
     const crewContainer = document.getElementById('booking-crew')
     const productsContainer = document.getElementById('booking-products')
     const errorEl = document.getElementById('booking-error')
@@ -944,6 +1042,7 @@ function setupModalHandlers () {
       address: addressInput ? addressInput.value.trim() : '',
       clientPhone: phoneInput ? phoneInput.value.trim() : '',
       orderNumbers: orderInput ? orderInput.value.trim() : '',
+      salesperson_id: salespersonSelect ? (salespersonSelect.value || null) : null,
       crew,
       products: productsPayload
     }
@@ -1001,6 +1100,7 @@ function openModalForNew (dateISO, teamId, startTime) {
   const addressInput = document.getElementById('booking-address')
   const phoneInput = document.getElementById('booking-phone')
   const orderInput = document.getElementById('booking-orderNumbers')
+  const salespersonSelect = document.getElementById('booking-salesperson')
 
   if (idInput) idInput.value = ''
   if (deleteBtn) deleteBtn.classList.add('d-none')
@@ -1016,6 +1116,7 @@ function openModalForNew (dateISO, teamId, startTime) {
   if (addressInput) addressInput.value = ''
   if (phoneInput) phoneInput.value = ''
   if (orderInput) orderInput.value = ''
+  if (salespersonSelect) salespersonSelect.value = ''
 
   renderCrewAndProducts(null)
 
@@ -1037,6 +1138,7 @@ function openModalForEdit (booking) {
   const addressInput = document.getElementById('booking-address')
   const phoneInput = document.getElementById('booking-phone')
   const orderInput = document.getElementById('booking-orderNumbers')
+  const salespersonSelect = document.getElementById('booking-salesperson')
 
   if (idInput) idInput.value = booking.id
   if (deleteBtn) deleteBtn.classList.remove('d-none')
@@ -1052,6 +1154,10 @@ function openModalForEdit (booking) {
   if (addressInput) addressInput.value = booking.address || ''
   if (phoneInput) phoneInput.value = booking.clientPhone || ''
   if (orderInput) orderInput.value = booking.orderNumbers || ''
+  if (salespersonSelect) {
+    const sp = booking.salesperson_id ?? booking.salespersonId
+    salespersonSelect.value = sp != null ? String(sp) : ''
+  }
 
   renderCrewAndProducts(booking)
 
@@ -1189,8 +1295,8 @@ function buildProductRow (row, index) {
     '<option value="">Select product…</option>' +
     (products || [])
       .map(p => {
-        const label = p.sub_type
-          ? `${p.name} – ${p.sub_type}`
+        const label = p.subType
+          ? `${p.name} – ${p.subType}`
           : p.name
         const selected = String(p.id) === String(selectedId) ? ' selected' : ''
         return `<option value="${p.id}"${selected}>${escapeHtml(label)}</option>`
@@ -1238,6 +1344,13 @@ function buildBookingMetaLine (b) {
   const jobLabel = jobTypeLabel(b.jobType)
   if (jobLabel) bits.push(jobLabel)
 
+  // Salesperson name (if assigned)
+  const salesperson = b.salesperson_id ?? b.salespersonId
+  if (salesperson != null && people && people.length) {
+    const sp = people.find(p => String(p.id) === String(salesperson))
+    if (sp && sp.name) bits.push(`Sales: ${sp.name}`)
+  }
+
   // Notes / address / order numbers – same priority as before
   const notesSummary = (b.notes || '').split('\n')[0].trim()
   const orderSummary = (b.orderNumbers || '').split('\n')[0].trim()
@@ -1252,10 +1365,9 @@ function buildBookingMetaLine (b) {
   if (Array.isArray(b.products) && b.products.length && products && products.length) {
     const first = b.products[0]
     const prod = products.find(p => String(p.id) === String(first.productId))
-    console.log(`PRODUCTS!!!!!: ${prod}`)
     if (prod) {
-      const label = prod.sub_type
-        ? `${prod.name} – ${prod.sub_type}`
+      const label = prod.subType
+        ? `${prod.name} – ${prod.subType}`
         : prod.name
       const qty = first.quantity != null ? first.quantity : 1
       bits.push(`${qty}× ${label}`)

@@ -38,7 +38,8 @@ function bookingToRow (b) {
     client_phone: b.clientPhone,
     order_numbers: b.orderNumbers,
     crew: b.crew ?? [],
-    products: b.products ?? []
+    products: b.products ?? [],
+    salesperson_id: b.salesperson_id ?? null
   }
 }
 
@@ -63,7 +64,8 @@ function rowToBooking (r) {
     clientPhone: r.client_phone,
     orderNumbers: r.order_numbers,
     crew: r.crew ?? [],
-    products: r.products ?? []
+    products: r.products ?? [],
+    salesperson_id: r.salesperson_id ?? null
   }
 }
 
