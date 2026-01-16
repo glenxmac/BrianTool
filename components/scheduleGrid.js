@@ -769,8 +769,8 @@ function handlePrintDay () {
                 p => String(p.id) === String(item.productId)
               )
               if (!prod) return ''
-              const label = prod.sub_Type
-                ? `${prod.name} – ${prod.sub_Type}`
+              const label = prod.sub_type
+                ? `${prod.name} – ${prod.sub_type}`
                 : prod.name
               const qty = item.quantity != null ? item.quantity : 1
               return `${qty}× ${label}`
@@ -1189,8 +1189,8 @@ function buildProductRow (row, index) {
     '<option value="">Select product…</option>' +
     (products || [])
       .map(p => {
-        const label = p.sub_Type
-          ? `${p.name} – ${p.sub_Type}`
+        const label = p.sub_type
+          ? `${p.name} – ${p.sub_type}`
           : p.name
         const selected = String(p.id) === String(selectedId) ? ' selected' : ''
         return `<option value="${p.id}"${selected}>${escapeHtml(label)}</option>`
@@ -1252,9 +1252,10 @@ function buildBookingMetaLine (b) {
   if (Array.isArray(b.products) && b.products.length && products && products.length) {
     const first = b.products[0]
     const prod = products.find(p => String(p.id) === String(first.productId))
+    console.log(`PRODUCTS!!!!!: ${prod}`)
     if (prod) {
-      const label = prod.sub_Type
-        ? `${prod.name} – ${prod.sub_Type}`
+      const label = prod.sub_type
+        ? `${prod.name} – ${prod.sub_type}`
         : prod.name
       const qty = first.quantity != null ? first.quantity : 1
       bits.push(`${qty}× ${label}`)
