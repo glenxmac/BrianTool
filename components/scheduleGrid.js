@@ -27,6 +27,7 @@ let pendingOpenBookingId = null
 
 let scheduleGridContainer
 let labelEl
+let dayPickerEl
 let bookingModal
 let bookingForm
 let resizeState = null
@@ -95,6 +96,7 @@ function normalizeBooking (b) {
 export function initScheduleGrid () {
   scheduleGridContainer = document.getElementById('scheduleGridContainer')
   labelEl = document.getElementById('scheduleLabel')
+  dayPickerEl = document.getElementById('dayDatePicker')
 
   bookingModal = new bootstrap.Modal(document.getElementById('bookingModal'))
   bookingForm =
@@ -182,6 +184,14 @@ function renderLabel () {
     labelEl.textContent = `Week of ${formatDateShort(
       weekStart
     )} – ${formatDateShort(weekEnd)}`
+  }
+  if (dayPickerEl) {
+    if (viewMode === 'day') {
+      dayPickerEl.disabled = false
+      dayPickerEl.value = formatDateISO(currentDate)
+    } else {
+      dayPickerEl.disabled = true
+    }
   }
 }
 
@@ -888,6 +898,25 @@ function setupToolbar () {
       }
       refreshData()
     })
+
+
+  if (dayPickerEl) {
+    dayPickerEl.addEventListener('change', () => {
+      const v = (dayPickerEl.value || '').trim()
+      if (!v) return
+
+      // If user picks a day while in week view, jump to that day (day view).
+      if (viewMode !== 'day') {
+        viewMode = 'day'
+        document.getElementById('btnViewDay')?.classList.add('active')
+        document.getElementById('btnViewWeek')?.classList.remove('active')
+      }
+
+      // Create local date (avoid UTC shifting).
+      currentDate = new Date(`${v}T00:00:00`)
+      refreshData()
+    })
+  }
 
   const printBtn = document.getElementById('btnPrintDay')
   if (printBtn) {
