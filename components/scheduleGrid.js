@@ -20,6 +20,11 @@ let products = []
 let viewMode = 'day'
 let currentDate = new Date()
 
+// job search (filters jobs by customer name and sorts results by closest date to today)
+let jobSearchQuery = ''
+let pendingOpenBookingId = null
+
+
 let scheduleGridContainer
 let labelEl
 let bookingModal
@@ -96,6 +101,7 @@ export function initScheduleGrid () {
 
   setupToolbar()
   setupModalHandlers()
+  setupJobSearch()
 
   window.addEventListener('teamsUpdated', refreshData)
   window.addEventListener('bookingsUpdated', refreshData)
@@ -147,6 +153,14 @@ async function refreshData () {
     populateModalOptions()
     renderLabel()
     renderGrid()
+    renderSearchResults()
+
+    // If user clicked a search result, open that booking after the grid refresh
+    if (pendingOpenBookingId) {
+      const b = bookings.find(x => String(x.id) === String(pendingOpenBookingId))
+      pendingOpenBookingId = null
+      if (b) openModalForEdit(b)
+    }
   } catch (err) {
     console.error('refreshData failed', err)
   }
@@ -170,6 +184,142 @@ function renderLabel () {
 }
 
 /* ---------------- grid rendering ---------------- */
+/* ---------------- job search ---------------- */
+
+function setupJobSearch () {
+  const input = document.getElementById('jobSearchInput')
+  const clearBtn = document.getElementById('jobSearchClear')
+  if (!input) return
+
+  let t = null
+  const apply = () => {
+    jobSearchQuery = (input.value || '').trim()
+    renderGrid()          // filter grid immediately (no DB fetch)
+    renderSearchResults() // show results list
+  }
+
+  input.addEventListener('input', () => {
+    if (t) window.clearTimeout(t)
+    t = window.setTimeout(apply, 120)
+  })
+
+  if (clearBtn) {
+    clearBtn.addEventListener('click', e => {
+      e.preventDefault()
+      input.value = ''
+      jobSearchQuery = ''
+      renderGrid()
+      renderSearchResults()
+      input.focus()
+    })
+  }
+}
+
+function matchesJobSearch (booking) {
+  if (!jobSearchQuery) return true
+  const q = jobSearchQuery.toLowerCase()
+  const name = String(booking?.customerName || '').toLowerCase()
+  return name.includes(q)
+}
+
+function isoToDateMs (iso) {
+  // treat YYYY-MM-DD as local midnight
+  if (!iso) return 0
+  const d = new Date(String(iso) + 'T00:00:00')
+  d.setHours(0, 0, 0, 0)
+  return d.getTime()
+}
+
+function bookingDistanceFromToday (booking) {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const ms = isoToDateMs(booking?.date)
+  return Math.abs(ms - today.getTime())
+}
+
+function renderSearchResults () {
+  const container = document.getElementById('jobSearchResults')
+  if (!container) return
+
+  if (!jobSearchQuery) {
+    container.innerHTML = ''
+    return
+  }
+
+  const results = (bookings || [])
+    .filter(b => matchesJobSearch(b))
+    .sort((a, b) => {
+      const da = bookingDistanceFromToday(a)
+      const db = bookingDistanceFromToday(b)
+      if (da !== db) return da - db
+
+      const aMs = isoToDateMs(a.date)
+      const bMs = isoToDateMs(b.date)
+      if (aMs !== bMs) return aMs - bMs
+
+      // tie-break by time
+      return String(a.startTime || '').localeCompare(String(b.startTime || ''))
+    })
+    .slice(0, 30)
+
+  if (!results.length) {
+    container.innerHTML = '<div class="text-muted small">No matching jobs.</div>'
+    return
+  }
+
+  container.innerHTML = `
+    <div class="list-group list-group-flush">
+      ${results
+        .map(b => {
+          const dateLabel = b.date || ''
+          const timeLabel = b.startTime || ''
+          const teamName = (teams || []).find(t => String(t.id) === String(b.teamId))?.name || ''
+          const cust = (b.customerName || 'Job').trim() || 'Job'
+          const sub = [teamName, timeLabel].filter(Boolean).join(' • ')
+          return `
+            <button
+              type="button"
+              class="list-group-item list-group-item-action py-2"
+              data-action="jump-to-job"
+              data-booking-id="${escapeHtml(String(b.id))}"
+              title="Jump to this job"
+            >
+              <div class="d-flex justify-content-between">
+                <div class="fw-semibold">${escapeHtml(cust)}</div>
+                <div class="text-muted small">${escapeHtml(dateLabel)}</div>
+              </div>
+              <div class="text-muted small">${escapeHtml(sub)}</div>
+            </button>
+          `
+        })
+        .join('')}
+    </div>
+  `
+
+  // delegated click
+  container.onclick = e => {
+    const btn = e.target.closest('[data-action="jump-to-job"]')
+    if (!btn) return
+    const id = btn.dataset.bookingId
+    const booking = (bookings || []).find(x => String(x.id) === String(id))
+    if (!booking) return
+
+    // jump to the day that contains this booking, refresh data for that period
+    pendingOpenBookingId = booking.id
+    currentDate = new Date(String(booking.date) + 'T00:00:00')
+
+    // Switching to day view makes "jump" obvious, and avoids confusion in week view.
+    viewMode = 'day'
+    document.getElementById('btnViewDay')?.classList.add('active')
+    document.getElementById('btnViewWeek')?.classList.remove('active')
+
+    refreshData()
+  }
+}
+
+/* ---------------- end job search ---------------- */
+
+
 
 function scrollToCurrentDayInWeek () {
   if (!scheduleGridContainer) return
@@ -226,7 +376,7 @@ function renderGrid () {
   let html = ''
 
   days.forEach(day => {
-    const bookingsForDay = bookings.filter(b => b.date === day.iso)
+    const bookingsForDay = bookings.filter(b => b.date === day.iso).filter(matchesJobSearch)
 
     // grid[teamId][timeIdx] => null | {type:'booking'|'skip', booking, rowSpan}
     const grid = {}
