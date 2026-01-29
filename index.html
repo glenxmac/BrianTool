@@ -155,6 +155,15 @@
             </button>
             </div>
 
+            <div class="d-inline-block ms-2" style="min-width: 160px;">
+              <input
+                type="date"
+                class="form-control form-control-sm"
+                id="dayDatePicker"
+                aria-label="Pick a day"
+              />
+            </div>
+
             <button
                 type="button"
                 class="btn btn-outline-secondary btn-sm ms-auto"
@@ -494,6 +503,16 @@
                     />
                 </div>
                 <div class="col-md-3">
+                    <label for="booking-email" class="form-label">Client email</label>
+                    <input
+                      id="booking-email"
+                      type="email"
+                      class="form-control form-control-sm"
+                      placeholder="client@email.com"
+                      autocomplete="email"
+                    />
+                </div>
+                <div class="col-md-3">
                     <label for="booking-jobType" class="form-label">Job type</label>
                     <select
                     id="booking-jobType"
@@ -577,21 +596,50 @@
             </div>
 
             <div class="modal-footer">
+                
                 <button
-                type="button"
-                class="btn btn-outline-danger me-auto d-none"
-                id="btn-delete-booking"
+                  type="button"
+                  class="btn btn-outline-danger d-none"
+                  id="btn-delete-booking"
                 >
-                Delete
+                  Delete
                 </button>
-                <button
-                type="button"
-                class="btn btn-secondary"
-                data-bs-dismiss="modal"
+
+                <div class="small text-muted me-auto" id="booking-contact-hint">
+                  Tip: add a mobile number and/or client email to enable one-click contact.
+                </div>
+
+                <a
+                  class="btn btn-success"
+                  id="booking-whatsapp-link"
+                  href="#"
+                  target="_blank"
+                  rel="noopener"
+                  aria-disabled="true"
+                  tabindex="-1"
                 >
-                Cancel
+                  💬 WhatsApp
+                </a>
+
+                <a
+                  class="btn btn-outline-primary"
+                  id="booking-email-link"
+                  href="#"
+                  aria-disabled="true"
+                  tabindex="-1"
+                >
+                  📧 Email
+                </a>
+
+                <button
+                  type="button"
+                  class="btn btn-secondary"
+                  data-bs-dismiss="modal"
+                >
+                  Cancel
                 </button>
                 <button type="submit" class="btn btn-primary">Save booking</button>
+
             </div>
             </form>
         </div>
