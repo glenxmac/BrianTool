@@ -162,7 +162,37 @@
                 Print day
             </button>
         </div>
+        
+        <!-- Job search -->
+        <div class="card mb-3">
+          <div class="card-body py-2">
+            <div class="row g-2 align-items-center">
+              <div class="col-md-6">
+                <input
+                  type="search"
+                  class="form-control form-control-sm"
+                  id="jobSearchInput"
+                  placeholder="Search jobs by customer name…"
+                  autocomplete="off"
+                />
+              </div>
+              <div class="col-auto">
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="jobSearchClear">
+                  Clear
+                </button>
+              </div>
+              <div class="col-12">
+                <div class="small text-muted">
+                  Results are sorted by closest date to today. Click a result to jump to that job.
+                </div>
+              </div>
+            </div>
+
+            <div id="jobSearchResults" class="mt-2"></div>
+          </div>
         </div>
+
+</div>
 
 
         <div class="card">
